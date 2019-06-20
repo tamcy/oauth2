@@ -105,10 +105,19 @@ class Client extends http.BaseClient {
   /// This will also automatically refresh this client's [Credentials] before
   /// sending the request if necessary.
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    print('[OAuth2] ---------------------------------------------');
+    print('[OAuth2] Prepare to send request');
     if (credentials.isExpired) {
+      print('[OAuth2] Credential is expired, refreshing credentials');
       if (!credentials.canRefresh) throw new ExpirationException(credentials);
       await refreshCredentials();
+    } else {
+      print('[OAuth2] Credential not expired, refreshing not needed');
     }
+
+    print('[OAuth2]  Access token: ${credentials.accessToken}');
+    print('[OAuth2] Refresh token: ${credentials.refreshToken}');
+    print('[OAuth2] ---------------------------------------------');
 
     request.headers['authorization'] = "Bearer ${credentials.accessToken}";
     var response = await _httpClient.send(request);
@@ -118,23 +127,19 @@ class Client extends http.BaseClient {
 
     var challenges;
     try {
-      challenges = AuthenticationChallenge.parseHeader(
-          response.headers['www-authenticate']);
+      challenges = AuthenticationChallenge.parseHeader(response.headers['www-authenticate']);
     } on FormatException {
       return response;
     }
 
-    var challenge = challenges.firstWhere(
-        (challenge) => challenge.scheme == 'bearer',
-        orElse: () => null);
+    var challenge =
+        challenges.firstWhere((challenge) => challenge.scheme == 'bearer', orElse: () => null);
     if (challenge == null) return response;
 
     var params = challenge.parameters;
     if (!params.containsKey('error')) return response;
 
-    throw new AuthorizationException(
-        params['error'],
-        params['error_description'],
+    throw new AuthorizationException(params['error'], params['error_description'],
         params['error_uri'] == null ? null : Uri.parse(params['error_uri']));
   }
 
@@ -148,6 +153,8 @@ class Client extends http.BaseClient {
   /// [newScopes]. These must be a subset of the scopes in the
   /// [Credentials.scopes] field of [Client.credentials].
   Future<Client> refreshCredentials([List<String> newScopes]) async {
+    print('[OAuth2] -');
+    print('[OAuth2] Perform credentials refresh logic');
     if (!credentials.canRefresh) {
       var prefix = "OAuth credentials";
       if (credentials.isExpired) prefix = "$prefix have expired and";

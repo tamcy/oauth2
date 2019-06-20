@@ -69,8 +69,13 @@ class Credentials {
   /// Note that it's possible the credentials will expire shortly after this is
   /// called. However, since the client's expiration date is kept a few seconds
   /// earlier than the server's, there should be enough leeway to rely on this.
-  bool get isExpired =>
-      expiration != null && new DateTime.now().isAfter(expiration);
+  bool get isExpired {
+    final now = new DateTime.now();
+    print('[OAuth2] Check if the credentials have expired');
+    print('[OAuth2] Expiration: ${expiration.toIso8601String()}');
+    print('[OAuth2]        Now: ${now.toIso8601String()}');
+    return expiration != null && now.isAfter(expiration);
+  }
 
   /// Whether it's possible to refresh these credentials.
   bool get canRefresh => refreshToken != null && tokenEndpoint != null;
@@ -115,8 +120,7 @@ class Credentials {
   factory Credentials.fromJson(String json) {
     validate(condition, message) {
       if (condition) return;
-      throw new FormatException(
-          "Failed to load credentials: $message.\n\n$json");
+      throw new FormatException("Failed to load credentials: $message.\n\n$json");
     }
 
     var parsed;
@@ -127,8 +131,7 @@ class Credentials {
     }
 
     validate(parsed is Map, 'was not a JSON map');
-    validate(parsed.containsKey('accessToken'),
-        'did not contain required field "accessToken"');
+    validate(parsed.containsKey('accessToken'), 'did not contain required field "accessToken"');
     validate(
         parsed['accessToken'] is String,
         'required field "accessToken" was not a string, was '
@@ -136,13 +139,12 @@ class Credentials {
 
     for (var stringField in ['refreshToken', 'tokenEndpoint']) {
       var value = parsed[stringField];
-      validate(value == null || value is String,
-          'field "$stringField" was not a string, was "$value"');
+      validate(
+          value == null || value is String, 'field "$stringField" was not a string, was "$value"');
     }
 
     var scopes = parsed['scopes'];
-    validate(scopes == null || scopes is List,
-        'field "scopes" was not a list, was "$scopes"');
+    validate(scopes == null || scopes is List, 'field "scopes" was not a list, was "$scopes"');
 
     var tokenEndpoint = parsed['tokenEndpoint'];
     if (tokenEndpoint != null) {
@@ -150,8 +152,7 @@ class Credentials {
     }
     var expiration = parsed['expiration'];
     if (expiration != null) {
-      validate(expiration is int,
-          'field "expiration" was not an int, was "$expiration"');
+      validate(expiration is int, 'field "expiration" was not an int, was "$expiration"');
       expiration = new DateTime.fromMillisecondsSinceEpoch(expiration);
     }
 
@@ -169,11 +170,9 @@ class Credentials {
   String toJson() => jsonEncode({
         'accessToken': accessToken,
         'refreshToken': refreshToken,
-        'tokenEndpoint':
-            tokenEndpoint == null ? null : tokenEndpoint.toString(),
+        'tokenEndpoint': tokenEndpoint == null ? null : tokenEndpoint.toString(),
         'scopes': scopes,
-        'expiration':
-            expiration == null ? null : expiration.millisecondsSinceEpoch
+        'expiration': expiration == null ? null : expiration.millisecondsSinceEpoch
       });
 
   /// Returns a new set of refreshed credentials.
@@ -224,8 +223,7 @@ class Credentials {
       if (secret != null) body["client_secret"] = secret;
     }
 
-    var response =
-        await httpClient.post(tokenEndpoint, headers: headers, body: body);
+    var response = await httpClient.post(tokenEndpoint, headers: headers, body: body);
     var credentials = await handleAccessTokenResponse(
         response, tokenEndpoint, startTime, scopes, _delimiter,
         getParameters: _getParameters);
